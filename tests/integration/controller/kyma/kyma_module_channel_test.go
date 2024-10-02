@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	FastChannel             = "fast"
+	FastChannel             = shared.Channel("fast")
 	ValidChannel            = "valid"
 	InvalidNoneChannel      = string(shared.NoneChannel)
 	InValidChannel          = "Invalid01"                                       // lower case characters from a to z
@@ -122,12 +122,12 @@ var _ = Describe("Given invalid channel which is rejected by CRD validation rule
 	)
 })
 
-func givenModuleTemplateWithChannel(channel string, isValid bool) func() error {
+func givenModuleTemplateWithChannel(channel shared.Channel, isValid bool) func() error {
 	return func() error {
 		modules := []v1beta2.Module{
 			{
 				ControllerName: "manifest",
-				Name:           "module-with-" + channel,
+				Name:           "module-with-" + string(channel),
 				Channel:        channel,
 				Managed:        true,
 			},
@@ -140,7 +140,7 @@ func givenModuleTemplateWithChannel(channel string, isValid bool) func() error {
 	}
 }
 
-func deployModuleInChannel(channel string, moduleName string) error {
+func deployModuleInChannel(channel shared.Channel, moduleName string) error {
 	modules := []v1beta2.Module{
 		{
 			ControllerName: "manifest",
@@ -153,7 +153,7 @@ func deployModuleInChannel(channel string, moduleName string) error {
 	return err
 }
 
-func givenKymaWithInvalidChannel(channel string) func() error {
+func givenKymaWithInvalidChannel(channel shared.Channel) func() error {
 	return func() error {
 		kyma := NewTestKyma("kyma")
 		kyma.Spec.Channel = channel
@@ -172,13 +172,13 @@ func ignoreInvalidError(err error) error {
 	return nil
 }
 
-func givenKymaSpecModulesWithInvalidChannel(channel string) func() error {
+func givenKymaSpecModulesWithInvalidChannel(channel shared.Channel) func() error {
 	return func() error {
 		kyma := NewTestKyma("kyma")
 		kyma.Spec.Modules = append(
 			kyma.Spec.Modules, v1beta2.Module{
 				ControllerName: "manifest",
-				Name:           "module-with-" + channel,
+				Name:           "module-with-" + string(channel),
 				Channel:        channel,
 				Managed:        true,
 			})
@@ -302,13 +302,13 @@ func CleanupModuleTemplateSetsForKyma(kyma *v1beta2.Kyma) func() {
 	}
 }
 
-func expectEveryModuleStatusToHaveChannel(kymaName, channel string) func() error {
+func expectEveryModuleStatusToHaveChannel(kymaName string, channel shared.Channel) func() error {
 	return func() error {
 		return templateInfosMatchChannel(kymaName, channel)
 	}
 }
 
-func templateInfosMatchChannel(kymaName, channel string) error {
+func templateInfosMatchChannel(kymaName string, channel shared.Channel) error {
 	kyma, err := GetKyma(ctx, kcpClient, kymaName, "")
 	if err != nil {
 		return err
@@ -324,7 +324,7 @@ func templateInfosMatchChannel(kymaName, channel string) error {
 	return nil
 }
 
-func expectEveryManifestToHaveChannel(kymaName, kymaNamespace, channel string) error {
+func expectEveryManifestToHaveChannel(kymaName, kymaNamespace string, channel shared.Channel) error {
 	kyma, err := GetKyma(ctx, kcpClient, kymaName, kymaNamespace)
 	if err != nil {
 		return err
@@ -351,7 +351,7 @@ func expectEveryManifestToHaveChannel(kymaName, kymaNamespace, channel string) e
 	)
 }
 
-func expectModuleManifestToHaveChannel(kymaName, kymaNamespace, moduleName, channel string) error {
+func expectModuleManifestToHaveChannel(kymaName, kymaNamespace, moduleName string, channel shared.Channel) error {
 	kyma, err := GetKyma(ctx, kcpClient, kymaName, kymaNamespace)
 	if err != nil {
 		return err
@@ -377,13 +377,13 @@ func expectModuleManifestToHaveChannel(kymaName, kymaNamespace, moduleName, chan
 	)
 }
 
-func whenUpdatingEveryModuleChannel(kymaName, kymaNamespace, channel string) func() error {
+func whenUpdatingEveryModuleChannel(kymaName, kymaNamespace string, channel shared.Channel) func() error {
 	return func() error {
 		return UpdateKymaModuleChannel(ctx, kcpClient, kymaName, kymaNamespace, channel)
 	}
 }
 
-func createModuleTemplateSetsForKyma(modules []v1beta2.Module, modifiedVersion, channel string) error {
+func createModuleTemplateSetsForKyma(modules []v1beta2.Module, modifiedVersion string, channel shared.Channel) error {
 	for _, module := range modules {
 		template := builder.NewModuleTemplateBuilder().
 			WithLabelModuleName(module.Name).

@@ -121,7 +121,7 @@ var _ = Describe("Enqueue Event from Watcher", Ordered, func() {
 	})
 })
 
-func changeRemoteKymaChannel(ctx context.Context, kymaNamespace, channel string, k8sClient client.Client) error {
+func changeRemoteKymaChannel(ctx context.Context, kymaNamespace string, channel shared.Channel, k8sClient client.Client) error {
 	kyma := &v1beta2.Kyma{}
 	if err := k8sClient.Get(ctx,
 		client.ObjectKey{Name: defaultRemoteKymaName, Namespace: kymaNamespace},

@@ -335,7 +335,7 @@ var _ = Describe("Modules can only be referenced via module name", Ordered, func
 
 	moduleReferencedWithLabel := NewTestModule("random-module", v1beta2.DefaultChannel)
 	moduleReferencedWithNamespacedName := NewTestModule(
-		v1beta2.DefaultChannel+shared.Separator+"random-module", v1beta2.DefaultChannel)
+		string(v1beta2.DefaultChannel)+shared.Separator+"random-module", v1beta2.DefaultChannel)
 	moduleReferencedWithFQDN := NewTestModuleWithFixName("kyma-project.io/module/"+"random-module",
 		v1beta2.DefaultChannel, "")
 	kyma.Spec.Modules = append(kyma.Spec.Modules, moduleReferencedWithLabel)
@@ -508,7 +508,7 @@ func validateManifestSpecResource(manifestResource, moduleTemplateData *unstruct
 }
 
 // getKCPModuleTemplate is a generic ModuleTemplate validation function.
-func validateKCPModuleTemplate(module v1beta2.Module, kymaChannel string) func(moduleTemplateFn) error {
+func validateKCPModuleTemplate(module v1beta2.Module, kymaChannel shared.Channel) func(moduleTemplateFn) error {
 	return func(validateFunc moduleTemplateFn) error {
 		moduleTemplate, err := GetModuleTemplate(ctx, kcpClient, module, kymaChannel)
 		if err != nil {
@@ -525,7 +525,7 @@ func validateKCPModuleTemplate(module v1beta2.Module, kymaChannel string) func(m
 }
 
 // updateKCPModuleTemplate is a generic ModuleTemplate update function.
-func updateKCPModuleTemplate(module v1beta2.Module, kymaChannel string) func(moduleTemplateFn) error {
+func updateKCPModuleTemplate(module v1beta2.Module, kymaChannel shared.Channel) func(moduleTemplateFn) error {
 	return func(updateFunc moduleTemplateFn) error {
 		moduleTemplate, err := GetModuleTemplate(ctx, kcpClient, module, kymaChannel)
 		if err != nil {

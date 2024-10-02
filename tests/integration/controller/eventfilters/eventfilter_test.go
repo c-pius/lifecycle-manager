@@ -29,7 +29,7 @@ var _ = Describe("Kyma is reconciled correctly based on the event filters", Orde
 	})
 
 	Context("Given Kyma Controller is set with generation predicate event filter", func() {
-		newChannel := "test"
+		newChannel := shared.Channel("test")
 
 		It("When kyma.spec is updated", func() {
 			Eventually(updateKymaChannel).

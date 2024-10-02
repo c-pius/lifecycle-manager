@@ -41,11 +41,11 @@ var (
 	ErrFetchingStatus             = errors.New("could not fetch status from resource")
 )
 
-func NewTestModule(name, channel string) v1beta2.Module {
+func NewTestModule(name string, channel shared.Channel) v1beta2.Module {
 	return NewTestModuleWithFixName(fmt.Sprintf("%s-%s", name, random.Name()), channel, "")
 }
 
-func NewTestModuleWithChannelVersion(name, channel, version string) v1beta2.Module {
+func NewTestModuleWithChannelVersion(name string, channel shared.Channel, version string) v1beta2.Module {
 	return NewTestModuleWithFixName(fmt.Sprintf("%s-%s", name, random.Name()), channel, version)
 }
 
@@ -53,11 +53,11 @@ func NewTemplateOperatorWithVersion(version string) v1beta2.Module {
 	return NewTestModuleWithFixName("template-operator", "", version)
 }
 
-func NewTemplateOperator(channel string) v1beta2.Module {
+func NewTemplateOperator(channel shared.Channel) v1beta2.Module {
 	return NewTestModuleWithFixName("template-operator", channel, "")
 }
 
-func NewTestModuleWithFixName(name, channel, version string) v1beta2.Module {
+func NewTestModuleWithFixName(name string, channel shared.Channel, version string) v1beta2.Module {
 	return v1beta2.Module{
 		Name:    name,
 		Channel: channel,

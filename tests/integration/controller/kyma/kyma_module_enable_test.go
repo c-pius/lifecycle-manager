@@ -26,7 +26,7 @@ var _ = Describe("Given kyma CR with invalid module enabled", Ordered, func() {
 			Interval).Should(Succeed())
 	})
 	It("When enable module with none channel, expect module status become error", func() {
-		module := NewTestModuleWithChannelVersion("test", string(shared.NoneChannel), "")
+		module := NewTestModuleWithChannelVersion("test", shared.NoneChannel, "")
 		Eventually(givenKymaWithModule, Timeout, Interval).
 			WithArguments(kyma, module).Should(Succeed())
 		Eventually(expectKymaStatusModules(ctx, kyma, module.Name, shared.StateError), Timeout,

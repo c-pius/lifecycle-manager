@@ -32,7 +32,7 @@ func NewTestKyma(name string) *v1beta2.Kyma {
 
 // NewKymaWithSyncLabel use this function to initialize kyma CR with SyncStrategyLocalSecret
 // are typically used in e2e test, which expect related access secret provided.
-func NewKymaWithSyncLabel(name, namespace, channel string) *v1beta2.Kyma {
+func NewKymaWithSyncLabel(name, namespace string, channel shared.Channel) *v1beta2.Kyma {
 	return builder.NewKymaBuilder().
 		WithNamePrefix(name).
 		WithNamespace(namespace).
@@ -198,7 +198,7 @@ func removeModuleWithIndex(s []v1beta2.Module, index int) []v1beta2.Module {
 }
 
 func UpdateKymaModuleChannel(ctx context.Context, clnt client.Client,
-	kymaName, kymaNamespace, channel string,
+	kymaName, kymaNamespace string, channel shared.Channel,
 ) error {
 	kyma, err := GetKyma(ctx, clnt, kymaName, kymaNamespace)
 	if err != nil {

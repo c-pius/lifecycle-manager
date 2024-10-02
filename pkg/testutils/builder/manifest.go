@@ -66,8 +66,8 @@ func (mb ManifestBuilder) WithSpec(spec v1beta2.ManifestSpec) ManifestBuilder {
 	return mb
 }
 
-func (mb ManifestBuilder) WithChannel(channel string) ManifestBuilder {
-	return mb.WithLabel(shared.ChannelLabel, channel)
+func (mb ManifestBuilder) WithChannel(channel shared.Channel) ManifestBuilder {
+	return mb.WithLabel(shared.ChannelLabel, string(channel))
 }
 
 func (mb ManifestBuilder) IsMandatoryModule() ManifestBuilder {

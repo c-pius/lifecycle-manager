@@ -228,16 +228,16 @@ func TestTemplateLookup_GetRegularTemplates_WhenSwitchBetweenModuleVersions(t *t
 		Add(moduleToInstall.Name, "regular", version1).
 		Add(moduleToInstall.Name, "fast", version2).
 		Add(moduleToInstall.Name, "experimental", version3).
-		Add(moduleToInstall.Name, string(shared.NoneChannel), version1).
-		Add(moduleToInstall.Name, string(shared.NoneChannel), version2).
-		Add(moduleToInstall.Name, string(shared.NoneChannel), version3).
+		Add(moduleToInstall.Name, shared.NoneChannel, version1).
+		Add(moduleToInstall.Name, shared.NoneChannel, version2).
+		Add(moduleToInstall.Name, shared.NoneChannel, version3).
 		Build()
 
 	tests := []struct {
 		name            string
 		kyma            *v1beta2.Kyma
 		wantVersion     string
-		wantChannel     string
+		wantChannel     shared.Channel
 		wantErrContains string
 	}{
 		{
@@ -246,7 +246,7 @@ func TestTemplateLookup_GetRegularTemplates_WhenSwitchBetweenModuleVersions(t *t
 				WithEnabledModule(moduleToInstall).
 				WithModuleStatus(v1beta2.ModuleStatus{
 					Name:    moduleToInstall.Name,
-					Channel: string(shared.NoneChannel),
+					Channel: shared.NoneChannel,
 					Version: version1,
 					Template: &v1beta2.TrackingObject{
 						PartialMeta: v1beta2.PartialMeta{
@@ -254,7 +254,7 @@ func TestTemplateLookup_GetRegularTemplates_WhenSwitchBetweenModuleVersions(t *t
 						},
 					},
 				}).Build(),
-			wantChannel: string(shared.NoneChannel),
+			wantChannel: shared.NoneChannel,
 			wantVersion: version2,
 		},
 		{
@@ -263,7 +263,7 @@ func TestTemplateLookup_GetRegularTemplates_WhenSwitchBetweenModuleVersions(t *t
 				WithEnabledModule(moduleToInstall).
 				WithModuleStatus(v1beta2.ModuleStatus{
 					Name:    moduleToInstall.Name,
-					Channel: string(shared.NoneChannel),
+					Channel: shared.NoneChannel,
 					Version: version3,
 					Template: &v1beta2.TrackingObject{
 						PartialMeta: v1beta2.PartialMeta{
@@ -300,16 +300,16 @@ func TestTemplateLookup_GetRegularTemplates_WhenSwitchFromChannelToVersion(t *te
 		Add(moduleToInstall.Name, "regular", version1).
 		Add(moduleToInstall.Name, "fast", version2).
 		Add(moduleToInstall.Name, "experimental", version3).
-		Add(moduleToInstall.Name, string(shared.NoneChannel), version1).
-		Add(moduleToInstall.Name, string(shared.NoneChannel), version2).
-		Add(moduleToInstall.Name, string(shared.NoneChannel), version3).
+		Add(moduleToInstall.Name, shared.NoneChannel, version1).
+		Add(moduleToInstall.Name, shared.NoneChannel, version2).
+		Add(moduleToInstall.Name, shared.NoneChannel, version3).
 		Build()
 
 	tests := []struct {
 		name            string
 		kyma            *v1beta2.Kyma
 		wantVersion     string
-		wantChannel     string
+		wantChannel     shared.Channel
 		wantErrContains string
 	}{
 		{
@@ -326,7 +326,7 @@ func TestTemplateLookup_GetRegularTemplates_WhenSwitchFromChannelToVersion(t *te
 						},
 					},
 				}).Build(),
-			wantChannel: string(shared.NoneChannel),
+			wantChannel: shared.NoneChannel,
 			wantVersion: version2,
 		},
 		{
@@ -343,7 +343,7 @@ func TestTemplateLookup_GetRegularTemplates_WhenSwitchFromChannelToVersion(t *te
 						},
 					},
 				}).Build(),
-			wantChannel: string(shared.NoneChannel),
+			wantChannel: shared.NoneChannel,
 			wantVersion: version2,
 		},
 		{
@@ -389,16 +389,16 @@ func TestTemplateLookup_GetRegularTemplates_WhenSwitchFromVersionToChannel(t *te
 		Add(moduleToInstall.Name, "regular", version1).
 		Add(moduleToInstall.Name, "new_channel", version2).
 		Add(moduleToInstall.Name, "fast", version3).
-		Add(moduleToInstall.Name, string(shared.NoneChannel), version1).
-		Add(moduleToInstall.Name, string(shared.NoneChannel), version2).
-		Add(moduleToInstall.Name, string(shared.NoneChannel), version3).
+		Add(moduleToInstall.Name, shared.NoneChannel, version1).
+		Add(moduleToInstall.Name, shared.NoneChannel, version2).
+		Add(moduleToInstall.Name, shared.NoneChannel, version3).
 		Build()
 
 	tests := []struct {
 		name            string
 		kyma            *v1beta2.Kyma
 		wantVersion     string
-		wantChannel     string
+		wantChannel     shared.Channel
 		wantErrContains string
 	}{
 		{
@@ -407,7 +407,7 @@ func TestTemplateLookup_GetRegularTemplates_WhenSwitchFromVersionToChannel(t *te
 				WithEnabledModule(moduleToInstall).
 				WithModuleStatus(v1beta2.ModuleStatus{
 					Name:    moduleToInstall.Name,
-					Channel: string(shared.NoneChannel),
+					Channel: shared.NoneChannel,
 					Version: version2,
 					Template: &v1beta2.TrackingObject{
 						PartialMeta: v1beta2.PartialMeta{
@@ -424,7 +424,7 @@ func TestTemplateLookup_GetRegularTemplates_WhenSwitchFromVersionToChannel(t *te
 				WithEnabledModule(moduleToInstall).
 				WithModuleStatus(v1beta2.ModuleStatus{
 					Name:    moduleToInstall.Name,
-					Channel: string(shared.NoneChannel),
+					Channel: shared.NoneChannel,
 					Version: version1,
 					Template: &v1beta2.TrackingObject{
 						PartialMeta: v1beta2.PartialMeta{
@@ -441,7 +441,7 @@ func TestTemplateLookup_GetRegularTemplates_WhenSwitchFromVersionToChannel(t *te
 				WithEnabledModule(moduleToInstall).
 				WithModuleStatus(v1beta2.ModuleStatus{
 					Name:    moduleToInstall.Name,
-					Channel: string(shared.NoneChannel),
+					Channel: shared.NoneChannel,
 					Version: version3,
 					Template: &v1beta2.TrackingObject{
 						PartialMeta: v1beta2.PartialMeta{
@@ -759,7 +759,7 @@ func TestTemplateNameMatch(t *testing.T) {
 	}
 }
 
-func generateModuleTemplateListWithModule(moduleName, moduleChannel, moduleVersion string) v1beta2.ModuleTemplateList {
+func generateModuleTemplateListWithModule(moduleName string, moduleChannel shared.Channel, moduleVersion string) v1beta2.ModuleTemplateList {
 	templateList := v1beta2.ModuleTemplateList{}
 	templateList.Items = append(templateList.Items, *builder.NewModuleTemplateBuilder().
 		WithModuleName(moduleName).
@@ -785,7 +785,7 @@ type ModuleTemplateListBuilder struct {
 	ModuleTemplates []v1beta2.ModuleTemplate
 }
 
-func (mtlb *ModuleTemplateListBuilder) Add(moduleName, moduleChannel, moduleVersion string) *ModuleTemplateListBuilder {
+func (mtlb *ModuleTemplateListBuilder) Add(moduleName string, moduleChannel shared.Channel, moduleVersion string) *ModuleTemplateListBuilder {
 	list := generateModuleTemplateListWithModule(moduleName, moduleChannel, moduleVersion)
 	mtlb.ModuleTemplates = append(mtlb.ModuleTemplates, list.Items...)
 	return mtlb

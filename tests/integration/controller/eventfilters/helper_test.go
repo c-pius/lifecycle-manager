@@ -20,7 +20,7 @@ var (
 func updateKymaChannel(ctx context.Context,
 	k8sClient client.Client,
 	kyma *v1beta2.Kyma,
-	channel string,
+	channel shared.Channel,
 ) error {
 	kyma.Spec.Channel = channel
 
@@ -43,7 +43,7 @@ func addLabelToKyma(ctx context.Context,
 func kymaIsInExpectedStateWithUpdatedChannel(k8sClient client.Client,
 	kymaName string,
 	kymaNamespace string,
-	expectedChannel string,
+	expectedChannel shared.Channel,
 	expectedState shared.State,
 ) error {
 	kyma := &v1beta2.Kyma{}

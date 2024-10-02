@@ -12,6 +12,6 @@ const (
 	NoneChannel Channel = "none"
 )
 
-func (c Channel) Equals(value string) bool {
-	return string(c) == strings.ToLower(value)
+func (c Channel) Equals(value Channel) bool {
+	return strings.EqualFold(string(c), string(value))
 }

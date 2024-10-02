@@ -46,7 +46,7 @@ var _ = Describe("Module Upgrade By Channel Switch", Ordered, func() {
 		It("When upgrade version by switch Channel", func() {
 			Eventually(UpdateKymaModuleChannel).
 				WithContext(ctx).
-				WithArguments(skrClient, defaultRemoteKymaName, RemoteNamespace, "fast").
+				WithArguments(skrClient, defaultRemoteKymaName, RemoteNamespace, shared.Channel("fast")).
 				Should(Succeed())
 		})
 
@@ -78,7 +78,7 @@ var _ = Describe("Module Upgrade By Channel Switch", Ordered, func() {
 		It("When downgrade version by switch Channel", func() {
 			Eventually(UpdateKymaModuleChannel).
 				WithContext(ctx).
-				WithArguments(skrClient, defaultRemoteKymaName, RemoteNamespace, "regular").
+				WithArguments(skrClient, defaultRemoteKymaName, RemoteNamespace, shared.Channel("regular")).
 				Should(Succeed())
 		})
 

@@ -27,7 +27,7 @@ var (
 type ModuleTemplateInfo struct {
 	*v1beta2.ModuleTemplate
 	Err            error
-	DesiredChannel string
+	DesiredChannel shared.Channel
 }
 
 func NewTemplateLookup(reader client.Reader, descriptorProvider *provider.CachedDescriptorProvider) *TemplateLookup {
@@ -106,7 +106,7 @@ func ValidateTemplateMode(template ModuleTemplateInfo, kyma *v1beta2.Kyma) Modul
 	return template
 }
 
-func (t *TemplateLookup) GetAndValidateByChannel(ctx context.Context, name, channel, defaultChannel string) ModuleTemplateInfo {
+func (t *TemplateLookup) GetAndValidateByChannel(ctx context.Context, name string, channel, defaultChannel shared.Channel) ModuleTemplateInfo {
 	desiredChannel := getDesiredChannel(channel, defaultChannel)
 	info := ModuleTemplateInfo{
 		DesiredChannel: desiredChannel,
@@ -134,7 +134,7 @@ func (t *TemplateLookup) GetAndValidateByChannel(ctx context.Context, name, chan
 
 func (t *TemplateLookup) GetAndValidateByVersion(ctx context.Context, name, version string) ModuleTemplateInfo {
 	info := ModuleTemplateInfo{
-		DesiredChannel: string(shared.NoneChannel),
+		DesiredChannel: shared.NoneChannel,
 	}
 	template, err := t.getTemplateByVersion(ctx, name, version)
 	if err != nil {
@@ -146,7 +146,7 @@ func (t *TemplateLookup) GetAndValidateByVersion(ctx context.Context, name, vers
 	return info
 }
 
-func logUsedChannel(ctx context.Context, name string, actualChannel string, defaultChannel string) {
+func logUsedChannel(ctx context.Context, name string, actualChannel shared.Channel, defaultChannel shared.Channel) {
 	logger := logf.FromContext(ctx)
 	if actualChannel != defaultChannel {
 		logger.V(log.DebugLevel).Info(
@@ -189,7 +189,7 @@ func markInvalidChannelSkewUpdate(ctx context.Context, moduleTemplateInfo *Modul
 		"previousTemplateChannel", moduleStatus.Channel,
 	)
 
-	if moduleTemplateInfo.Spec.Channel == moduleStatus.Channel && moduleTemplateInfo.Spec.Channel != string(shared.NoneChannel) {
+	if moduleTemplateInfo.Spec.Channel == moduleStatus.Channel && moduleTemplateInfo.Spec.Channel != shared.NoneChannel {
 		return
 	}
 	checkLog.Info("outdated ModuleTemplate: channel skew")
@@ -231,8 +231,8 @@ func markInvalidChannelSkewUpdate(ctx context.Context, moduleTemplateInfo *Modul
 	}
 }
 
-func getDesiredChannel(moduleChannel, globalChannel string) string {
-	var desiredChannel string
+func getDesiredChannel(moduleChannel, globalChannel shared.Channel) shared.Channel {
+	var desiredChannel shared.Channel
 
 	switch {
 	case moduleChannel != "":
@@ -246,7 +246,7 @@ func getDesiredChannel(moduleChannel, globalChannel string) string {
 	return desiredChannel
 }
 
-func (t *TemplateLookup) getTemplateByChannel(ctx context.Context, name, desiredChannel string) (
+func (t *TemplateLookup) getTemplateByChannel(ctx context.Context, name string, desiredChannel shared.Channel) (
 	*v1beta2.ModuleTemplate, error,
 ) {
 	templateList := &v1beta2.ModuleTemplateList{}

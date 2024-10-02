@@ -148,12 +148,12 @@ func (manifest *Manifest) SkipReconciliation() bool {
 	return manifest.GetLabels() != nil && manifest.GetLabels()[shared.SkipReconcileLabel] == shared.EnableLabelValue
 }
 
-func (manifest *Manifest) GetChannel() (string, bool) {
+func (manifest *Manifest) GetChannel() (shared.Channel, bool) {
 	channel, found := manifest.Labels[shared.ChannelLabel]
 	if !found {
 		return "", false
 	}
-	return channel, true
+	return shared.Channel(channel), true
 }
 
 func (manifest *Manifest) IsSameChannel(otherManifest *Manifest) bool {

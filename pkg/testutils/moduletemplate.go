@@ -7,6 +7,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kyma-project/lifecycle-manager/api/shared"
 	"github.com/kyma-project/lifecycle-manager/api/v1beta2"
 	"github.com/kyma-project/lifecycle-manager/internal/descriptor/provider"
 	"github.com/kyma-project/lifecycle-manager/pkg/templatelookup"
@@ -16,7 +17,7 @@ import (
 func GetModuleTemplate(ctx context.Context,
 	clnt client.Client,
 	module v1beta2.Module,
-	defaultChannel string,
+	defaultChannel shared.Channel,
 ) (*v1beta2.ModuleTemplate, error) {
 	descriptorProvider := provider.NewCachedDescriptorProvider()
 	templateLookup := templatelookup.NewTemplateLookup(clnt, descriptorProvider)
@@ -30,7 +31,7 @@ func GetModuleTemplate(ctx context.Context,
 func ModuleTemplateExists(ctx context.Context,
 	clnt client.Client,
 	module v1beta2.Module,
-	defaultChannel string,
+	defaultChannel shared.Channel,
 ) error {
 	moduleTemplate, err := GetModuleTemplate(ctx, clnt, module, defaultChannel)
 	if moduleTemplate == nil || errors.Is(err, templatelookup.ErrNoTemplatesInListResult) {
@@ -54,8 +55,8 @@ func UpdateModuleTemplateSpec(ctx context.Context,
 	clnt client.Client,
 	module v1beta2.Module,
 	key,
-	newValue,
-	kymaChannel string,
+	newValue string,
+	kymaChannel shared.Channel,
 ) error {
 	moduleTemplate, err := GetModuleTemplate(ctx, clnt, module, kymaChannel)
 	if err != nil {
@@ -72,7 +73,7 @@ func UpdateModuleTemplateSpec(ctx context.Context,
 }
 
 func DeleteModuleTemplate(ctx context.Context,
-	clnt client.Client, module v1beta2.Module, kymaChannel string,
+	clnt client.Client, module v1beta2.Module, kymaChannel shared.Channel,
 ) error {
 	moduleTemplate, err := GetModuleTemplate(ctx, clnt, module, kymaChannel)
 	if util.IsNotFound(err) {
@@ -87,7 +88,7 @@ func DeleteModuleTemplate(ctx context.Context,
 }
 
 func ReadModuleVersionFromModuleTemplate(ctx context.Context, clnt client.Client, module v1beta2.Module,
-	channel string,
+	channel shared.Channel,
 ) (string, error) {
 	moduleTemplate, err := GetModuleTemplate(ctx, clnt, module, channel)
 	if err != nil {

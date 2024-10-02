@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/kyma-project/lifecycle-manager/api/shared"
 	"github.com/kyma-project/lifecycle-manager/api/v1beta2"
 	"github.com/kyma-project/lifecycle-manager/internal/remote"
 	"github.com/kyma-project/lifecycle-manager/pkg/testutils"
@@ -14,7 +15,7 @@ import (
 func TestReplaceWithVirtualKyma(t *testing.T) {
 	t.Parallel()
 	type testKyma struct {
-		channel string
+		channel shared.Channel
 		modules []string
 	}
 	tests := []struct {
@@ -71,7 +72,7 @@ func TestReplaceWithVirtualKyma(t *testing.T) {
 	}
 }
 
-func createKyma(channel string, modules []string) *v1beta2.Kyma {
+func createKyma(channel shared.Channel, modules []string) *v1beta2.Kyma {
 	kcpKyma := testutils.NewTestKyma("test-kyma")
 
 	kcpKyma.Spec.Channel = channel

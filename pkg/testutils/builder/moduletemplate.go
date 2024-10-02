@@ -79,7 +79,7 @@ func (m ModuleTemplateBuilder) WithLabelModuleName(moduleName string) ModuleTemp
 	return m
 }
 
-func (m ModuleTemplateBuilder) WithChannel(channel string) ModuleTemplateBuilder {
+func (m ModuleTemplateBuilder) WithChannel(channel shared.Channel) ModuleTemplateBuilder {
 	m.moduleTemplate.Spec.Channel = channel
 	return m
 }

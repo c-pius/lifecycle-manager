@@ -161,7 +161,7 @@ type ModuleStatus struct {
 
 	// Channel tracks the active Channel of the Module. In Case it changes, the new Channel will have caused
 	// a new lookup to be necessary that maybe picks a different ModuleTemplate, which is why we need to reconcile.
-	Channel string `json:"channel,omitempty"`
+	Channel shared.Channel `json:"channel,omitempty"`
 
 	// Channel tracks the active Version of the Module.
 	Version string `json:"version,omitempty"`
@@ -211,7 +211,7 @@ type PartialMeta struct {
 	Generation int64 `json:"generation,omitempty"`
 }
 
-const DefaultChannel = "regular"
+const DefaultChannel = shared.Channel("regular")
 
 func (m PartialMeta) GetName() string {
 	return m.Name

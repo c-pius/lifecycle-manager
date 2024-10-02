@@ -77,7 +77,7 @@ func DeployModuleTemplates(ctx context.Context, kcpClient client.Client, kyma *v
 	}
 }
 
-func kymaChannelMatch(clnt client.Client, name, namespace, channel string) error {
+func kymaChannelMatch(clnt client.Client, name, namespace string, channel shared.Channel) error {
 	kyma, err := GetKyma(ctx, clnt, name, namespace)
 	if err != nil {
 		return err
@@ -108,7 +108,7 @@ func watcherLabelsAnnotationsExist(clnt client.Client, remoteKyma *v1beta2.Kyma,
 func expectModuleTemplateSpecGetReset(
 	clnt client.Client,
 	module v1beta2.Module,
-	kymaChannel string,
+	kymaChannel shared.Channel,
 ) error {
 	moduleTemplate, err := GetModuleTemplate(ctx, clnt, module, kymaChannel)
 	if err != nil {

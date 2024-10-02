@@ -78,7 +78,7 @@ func (kb KymaBuilder) WithLabel(key string, value string) KymaBuilder {
 }
 
 // WithChannel sets v1beta2.Kyma.Spec.Channel.
-func (kb KymaBuilder) WithChannel(channel string) KymaBuilder {
+func (kb KymaBuilder) WithChannel(channel shared.Channel) KymaBuilder {
 	kb.kyma.Spec.Channel = channel
 	return kb
 }

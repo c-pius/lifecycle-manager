@@ -247,6 +247,9 @@ spec:
                       description: |-
                         Channel tracks the active Channel of the Module. In Case it changes, the new Channel will have caused
                         a new lookup to be necessary that maybe picks a different ModuleTemplate, which is why we need to reconcile.
+                      maxLength: 32
+                      minLength: 3
+                      pattern: ^[a-z]+$
                       type: string
                     fqdn:
                       description: |-
@@ -662,6 +665,9 @@ spec:
                       description: |-
                         Channel tracks the active Channel of the Module. In Case it changes, the new Channel will have caused
                         a new lookup to be necessary that maybe picks a different ModuleTemplate, which is why we need to reconcile.
+                      maxLength: 32
+                      minLength: 3
+                      pattern: ^[a-z]+$
                       type: string
                     fqdn:
                       description: |-
