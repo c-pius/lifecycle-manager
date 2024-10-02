@@ -19,6 +19,7 @@ package v1beta1
 import (
 	apimetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/kyma-project/lifecycle-manager/api/shared"
 	"github.com/kyma-project/lifecycle-manager/api/v1beta2"
 )
 
@@ -70,10 +71,7 @@ type Sync struct {
 // KymaSpec defines the desired state of Kyma.
 type KymaSpec struct {
 	// Channel specifies the desired Channel of the Installation, usually targeting different module versions.
-	// +kubebuilder:validation:Pattern:=^[a-z]+$
-	// +kubebuilder:validation:MaxLength:=32
-	// +kubebuilder:validation:MinLength:=3
-	Channel string `json:"channel"`
+	Channel shared.Channel `json:"channel"`
 
 	// Modules specifies the list of modules to be installed
 	Modules []v1beta2.Module `json:"modules,omitempty"`

@@ -2,6 +2,9 @@ package shared
 
 import "strings"
 
+// +kubebuilder:validation:Pattern:=^[a-z]+$
+// +kubebuilder:validation:MaxLength:=32
+// +kubebuilder:validation:MinLength:=3
 type Channel string
 
 const (

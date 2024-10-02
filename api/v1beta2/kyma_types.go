@@ -43,10 +43,7 @@ type Kyma struct {
 // KymaSpec defines the desired state of Kyma.
 type KymaSpec struct {
 	// Channel specifies the desired Channel of the Installation, usually targeting different module versions.
-	// +kubebuilder:validation:Pattern:=^[a-z]+$
-	// +kubebuilder:validation:MaxLength:=32
-	// +kubebuilder:validation:MinLength:=3
-	Channel string `json:"channel"`
+	Channel shared.Channel `json:"channel"`
 
 	// Modules specifies the list of modules to be installed
 	// +listType=map
@@ -69,10 +66,7 @@ type Module struct {
 
 	// Channel is the desired channel of the Module. If this changes or is set, it will be used to resolve a new
 	// ModuleTemplate based on the new resolved resources.
-	// +kubebuilder:validation:Pattern:=^[a-z]+$
-	// +kubebuilder:validation:MaxLength:=32
-	// +kubebuilder:validation:MinLength:=3
-	Channel string `json:"channel,omitempty"`
+	Channel shared.Channel `json:"channel,omitempty"`
 
 	// Version is the desired version of the Module. If this changes or is set, it will be used to resolve a new
 	// ModuleTemplate based on this specific version.
@@ -142,7 +136,7 @@ type KymaStatus struct {
 
 	// Active Channel
 	// +optional
-	ActiveChannel string `json:"activeChannel,omitempty"`
+	ActiveChannel shared.Channel `json:"activeChannel,omitempty"`
 
 	shared.LastOperation `json:"lastOperation,omitempty"`
 }

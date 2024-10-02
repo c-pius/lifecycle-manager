@@ -149,6 +149,9 @@ spec:
             properties:
               activeChannel:
                 description: Active Channel
+                maxLength: 32
+                minLength: 3
+                pattern: ^[a-z]+$
                 type: string
               conditions:
                 description: List of status conditions to indicate the status of a
@@ -561,6 +564,9 @@ spec:
             properties:
               activeChannel:
                 description: Active Channel
+                maxLength: 32
+                minLength: 3
+                pattern: ^[a-z]+$
                 type: string
               conditions:
                 description: List of status conditions to indicate the status of a
