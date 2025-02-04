@@ -22,6 +22,7 @@ import (
 	"github.com/kyma-project/lifecycle-manager/pkg/testutils"
 )
 
+// to be moved
 func TestClient_RemoveModuleCR(t *testing.T) {
 	// Given a manifest CR with finalizer and a resource CR deployed in the cluster
 	scheme := machineryruntime.NewScheme()

@@ -19,7 +19,6 @@ import (
 	"github.com/kyma-project/lifecycle-manager/internal"
 	"github.com/kyma-project/lifecycle-manager/internal/manifest/finalizer"
 	"github.com/kyma-project/lifecycle-manager/internal/manifest/labelsremoval"
-	"github.com/kyma-project/lifecycle-manager/internal/manifest/modulecr"
 	"github.com/kyma-project/lifecycle-manager/internal/manifest/skrresources"
 	"github.com/kyma-project/lifecycle-manager/internal/manifest/status"
 	"github.com/kyma-project/lifecycle-manager/internal/pkg/metrics"
@@ -172,7 +171,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if !manifest.GetDeletionTimestamp().IsZero() {
-		if err := modulecr.NewClient(skrClient).RemoveModuleCR(ctx, r.Client, manifest); err != nil {
+		if err := skrClient.DeleteModuleCR(ctx, manifest); err != nil {
 			if errors.Is(err, finalizer.ErrRequeueRequired) {
 				r.ManifestMetrics.RecordRequeueReason(metrics.ManifestPreDeleteEnqueueRequired, queue.IntendedRequeue)
 				return ctrl.Result{Requeue: true}, nil
@@ -219,7 +218,7 @@ func recordMandatoryModuleState(manifest *v1beta2.Manifest, r *Reconciler) {
 	}
 }
 
-func (r *Reconciler) handleLabelsRemovalFinalizer(ctx context.Context, skrClient client.Client,
+func (r *Reconciler) handleLabelsRemovalFinalizer(ctx context.Context, skrClient Client,
 	manifest *v1beta2.Manifest,
 ) (ctrl.Result, error) {
 	err := r.managedLabelRemovalService.RemoveManagedByLabel(ctx, manifest, skrClient)
@@ -312,7 +311,7 @@ func (r *Reconciler) syncManifestState(ctx context.Context, skrClient Client, ma
 ) error {
 	manifestStatus := manifest.GetStatus()
 
-	if err := modulecr.NewClient(skrClient).SyncModuleCR(ctx, manifest); err != nil {
+	if err := skrClient.SyncModuleCR(ctx, manifest); err != nil {
 		manifest.SetStatus(manifestStatus.WithState(shared.StateError).WithErr(err))
 		return err
 	}
@@ -352,11 +351,11 @@ func (r *Reconciler) checkManagerState(ctx context.Context, clnt Client, target 
 	return managerState, nil
 }
 
-func (r *Reconciler) renderTargetResources(ctx context.Context, skrClient client.Client,
+func (r *Reconciler) renderTargetResources(ctx context.Context, skrClient Client,
 	converter skrresources.ResourceToInfoConverter, manifest *v1beta2.Manifest, spec *Spec,
 ) ([]*resource.Info, error) {
 	if !manifest.GetDeletionTimestamp().IsZero() {
-		deleted, err := modulecr.NewClient(skrClient).CheckCRDeletion(ctx, manifest)
+		deleted, err := skrClient.CheckModuleCRDeletion(ctx, manifest)
 		if err != nil {
 			return nil, err
 		}
@@ -497,7 +496,7 @@ func (r *Reconciler) configClient(ctx context.Context, manifest *v1beta2.Manifes
 		}
 	}
 
-	clnt, err := NewSingletonClients(cluster)
+	clnt, err := NewSingletonClients(cluster, r.Client)
 	if err != nil {
 		return nil, err
 	}

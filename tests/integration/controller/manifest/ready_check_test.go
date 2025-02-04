@@ -155,7 +155,7 @@ func declarativeTestClient(clnt client.Client) (declarativev2.Client, error) {
 		Client: clnt,
 	}
 
-	return declarativev2.NewSingletonClients(cluster)
+	return declarativev2.NewSingletonClients(cluster, kcpClient)
 }
 
 func asResource(name, namespace, group, version, kind string) shared.Resource {
