@@ -1,12 +1,11 @@
 package v2
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"sync"
 
-	"github.com/kyma-project/lifecycle-manager/api/v1beta2"
+	"github.com/kyma-project/lifecycle-manager/internal/skr"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -38,7 +37,7 @@ type SingletonClients struct {
 	// controller runtime client
 	client.Client
 
-	moduleCR ModuleCRClient
+	skr.ModuleCRClient
 
 	// the original config used for all clients
 	config *rest.Config
@@ -127,7 +126,7 @@ func NewSingletonClients(info *ClusterInfo, kcp client.Client) (*SingletonClient
 		structuredRESTClientCache:   map[string]resource.RESTClient{},
 		unstructuredRESTClientCache: map[string]resource.RESTClient{},
 		Client:                      runtimeClient,
-		moduleCR:                    NewModuleCR(runtimeClient, kcp),
+		ModuleCRClient:              skr.NewModuleCR(runtimeClient, kcp),
 	}
 
 	return clients, nil
@@ -187,20 +186,4 @@ func setKubernetesDefaults(config *rest.Config) error {
 		return fmt.Errorf("failed to create kubernetes default config: %w", err)
 	}
 	return nil
-}
-
-func (f *SingletonClients) GetModuleCR(ctx context.Context, manifest *v1beta2.Manifest) (*unstructured.Unstructured, error) {
-	return f.moduleCR.GetModuleCR(ctx, manifest)
-}
-
-func (f *SingletonClients) DeleteModuleCR(ctx context.Context, manifest *v1beta2.Manifest) error {
-	return f.moduleCR.DeleteModuleCR(ctx, manifest)
-}
-
-func (f *SingletonClients) SyncModuleCR(ctx context.Context, manifest *v1beta2.Manifest) error {
-	return f.moduleCR.SyncModuleCR(ctx, manifest)
-}
-
-func (f *SingletonClients) CheckModuleCRDeletion(ctx context.Context, manifest *v1beta2.Manifest) (bool, error) {
-	return f.moduleCR.CheckModuleCRDeletion(ctx, manifest)
 }

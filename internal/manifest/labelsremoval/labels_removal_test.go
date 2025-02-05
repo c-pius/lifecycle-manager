@@ -17,6 +17,7 @@ import (
 	"github.com/kyma-project/lifecycle-manager/api/shared"
 	"github.com/kyma-project/lifecycle-manager/api/v1beta2"
 	"github.com/kyma-project/lifecycle-manager/internal/manifest/labelsremoval"
+	"github.com/kyma-project/lifecycle-manager/internal/skr"
 	"github.com/kyma-project/lifecycle-manager/pkg/testutils/builder"
 )
 
@@ -85,9 +86,14 @@ func Test_RemoveManagedByLabel_WhenManifestResourcesHaveLabels(t *testing.T) {
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
 	manifestClient := manifestClientStub{}
 
+	skr := skrClient{
+		fakeClient,
+		skr.NewModuleCR(fakeClient, nil),
+	}
+
 	service := labelsremoval.NewManagedByLabelRemovalService(&manifestClient)
 
-	err = service.RemoveManagedByLabel(context.TODO(), manifest, fakeClient)
+	err = service.RemoveManagedByLabel(context.TODO(), manifest, skr)
 	require.NoError(t, err)
 
 	firstObj, secondObj := &unstructured.Unstructured{}, &unstructured.Unstructured{}
@@ -132,11 +138,16 @@ func Test_RemoveManagedByLabel_WhenManifestResourceCannotBeFetched(t *testing.T)
 	manifest := builder.NewManifestBuilder().WithStatus(status).Build()
 
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	skr := skrClient{
+		fakeClient,
+		skr.NewModuleCR(fakeClient, nil),
+	}
+
 	manifestClient := manifestClientStub{}
 
 	svc := labelsremoval.NewManagedByLabelRemovalService(&manifestClient)
 
-	err = svc.RemoveManagedByLabel(context.TODO(), manifest, fakeClient)
+	err = svc.RemoveManagedByLabel(context.TODO(), manifest, skr)
 	require.ErrorContains(t, err, "failed to get resource")
 	assert.False(t, manifestClient.called)
 }
@@ -167,7 +178,12 @@ func Test_RemoveManagedByLabel_WhenDefaultCRHasLabels(t *testing.T) {
 
 	service := labelsremoval.NewManagedByLabelRemovalService(&manifestClient)
 
-	err = service.RemoveManagedByLabel(context.TODO(), manifest, fakeClient)
+	skr := skrClient{
+		fakeClient,
+		skr.NewModuleCR(fakeClient, nil),
+	}
+
+	err = service.RemoveManagedByLabel(context.TODO(), manifest, skr)
 
 	require.NoError(t, err)
 
@@ -203,7 +219,12 @@ func Test_RemoveManagedByLabel_WhenDefaultCRCannotBeFetched(t *testing.T) {
 
 	service := labelsremoval.NewManagedByLabelRemovalService(&manifestClient)
 
-	err = service.RemoveManagedByLabel(context.TODO(), manifest, fakeClient)
+	skr := skrClient{
+		fakeClient,
+		skr.NewModuleCR(fakeClient, nil),
+	}
+
+	err = service.RemoveManagedByLabel(context.TODO(), manifest, skr)
 
 	require.ErrorContains(t, err, "failed to get default CR")
 	assert.False(t, manifestClient.called)
@@ -254,7 +275,12 @@ func Test_RemoveManagedByLabel_WhenObjCannotBeUpdated(t *testing.T) {
 
 	service := labelsremoval.NewManagedByLabelRemovalService(&manifestClient)
 
-	err = service.RemoveManagedByLabel(context.TODO(), manifest, errorClientStub{fakeClient: fakeClient})
+	skr := &skrErrorClient{
+		fakeClient,
+		skr.NewModuleCR(fakeClient, nil),
+	}
+
+	err = service.RemoveManagedByLabel(context.TODO(), manifest, skr)
 
 	require.ErrorContains(t, err, "failed to update object")
 	require.ErrorContains(t, err, "test error")
@@ -272,7 +298,12 @@ func Test_RemoveManagedByLabel_WhenManifestResourcesAreNilAndNoDefaultCR(t *test
 
 	service := labelsremoval.NewManagedByLabelRemovalService(&manifestClient)
 
-	err = service.RemoveManagedByLabel(context.TODO(), manifest, fakeClient)
+	skr := skrClient{
+		fakeClient,
+		skr.NewModuleCR(fakeClient, nil),
+	}
+
+	err = service.RemoveManagedByLabel(context.TODO(), manifest, skr)
 
 	require.NoError(t, err)
 	assert.True(t, manifestClient.called)
@@ -323,7 +354,12 @@ func Test_RemoveManagedByLabel_WhenFinalizerIsRemoved(t *testing.T) {
 	manifestClient := manifestClientStub{}
 	svc := labelsremoval.NewManagedByLabelRemovalService(&manifestClient)
 
-	err = svc.RemoveManagedByLabel(context.TODO(), manifest, fakeClient)
+	skr := skrClient{
+		fakeClient,
+		skr.NewModuleCR(fakeClient, nil),
+	}
+
+	err = svc.RemoveManagedByLabel(context.TODO(), manifest, skr)
 
 	require.NoError(t, err)
 	assert.Empty(t, manifest.GetFinalizers())
@@ -342,15 +378,16 @@ func (m *manifestClientStub) UpdateManifest(ctx context.Context, manifest *v1bet
 	return m.err
 }
 
-type errorClientStub struct {
+type skrClient struct {
 	client.Client
-	fakeClient client.Client
+	skr.ModuleCRClient
 }
 
-func (e errorClientStub) Update(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+type skrErrorClient struct {
+	client.Client
+	skr.ModuleCRClient
+}
+
+func (e skrErrorClient) Update(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
 	return errors.New("test error")
-}
-
-func (e errorClientStub) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-	return e.fakeClient.Get(ctx, key, obj, opts...)
 }

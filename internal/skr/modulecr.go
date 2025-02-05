@@ -1,7 +1,8 @@
-package v2
+package skr
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -17,6 +18,15 @@ import (
 	"github.com/kyma-project/lifecycle-manager/pkg/util"
 )
 
+type ModuleCRClient interface {
+	GetModuleCR(ctx context.Context, manifest *v1beta2.Manifest) (*unstructured.Unstructured, error)
+	DeleteModuleCR(ctx context.Context, manifest *v1beta2.Manifest) error
+	SyncModuleCR(ctx context.Context, manifest *v1beta2.Manifest) error
+	CheckModuleCRDeletion(ctx context.Context, manifest *v1beta2.Manifest) (bool, error)
+}
+
+var ErrNoResourceDefined = errors.New("no resource defined in the manifest")
+
 type ModuleCR struct {
 	skr client.Client
 	kcp client.Client
@@ -30,6 +40,10 @@ func NewModuleCR(skr client.Client, kcp client.Client) *ModuleCR {
 }
 
 func (m *ModuleCR) GetModuleCR(ctx context.Context, manifest *v1beta2.Manifest) (*unstructured.Unstructured, error) {
+	if manifest.Spec.Resource == nil {
+		return nil, ErrNoResourceDefined
+	}
+
 	resourceCR := &unstructured.Unstructured{}
 	name := manifest.Spec.Resource.GetName()
 	namespace := manifest.Spec.Resource.GetNamespace()

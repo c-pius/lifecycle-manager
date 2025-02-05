@@ -58,7 +58,7 @@ func NewFromManager(mgr manager.Manager, requeueIntervals queue.RequeueIntervals
 type ManagedByLabelRemoval interface {
 	RemoveManagedByLabel(ctx context.Context,
 		manifest *v1beta2.Manifest,
-		skrClient client.Client,
+		skrClient labelsremoval.SkrClient,
 	) error
 }
 
