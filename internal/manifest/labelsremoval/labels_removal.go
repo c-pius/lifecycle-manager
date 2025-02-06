@@ -13,12 +13,11 @@ import (
 	"github.com/kyma-project/lifecycle-manager/api/shared"
 	"github.com/kyma-project/lifecycle-manager/api/v1beta2"
 	"github.com/kyma-project/lifecycle-manager/internal/manifest/finalizer"
-	"github.com/kyma-project/lifecycle-manager/internal/skr"
 )
 
 type SkrClient interface {
-	client.Client
-	skr.ModuleCRClient
+	Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error
+	Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error
 }
 
 type ManifestAPIClient interface {
@@ -82,7 +81,12 @@ func removeFromDefaultCR(ctx context.Context,
 		return nil
 	}
 
-	defaultCR, err := skr.GetModuleCR(ctx, manifest)
+	defaultCR := &unstructured.Unstructured{}
+	defaultCR.SetGroupVersionKind(manifest.Spec.Resource.GroupVersionKind())
+	err := skr.Get(ctx,
+		client.ObjectKey{Name: manifest.Spec.Resource.GetName(), Namespace: manifest.Spec.Resource.GetNamespace()},
+		defaultCR)
+
 	if err != nil {
 		return fmt.Errorf("failed to get default CR, %w", err)
 	}

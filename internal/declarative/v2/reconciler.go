@@ -17,6 +17,8 @@ import (
 	"github.com/kyma-project/lifecycle-manager/api/shared"
 	"github.com/kyma-project/lifecycle-manager/api/v1beta2"
 	"github.com/kyma-project/lifecycle-manager/internal"
+	"github.com/kyma-project/lifecycle-manager/internal/kcp"
+	kcpManifest "github.com/kyma-project/lifecycle-manager/internal/kcp/manifest"
 	"github.com/kyma-project/lifecycle-manager/internal/manifest/finalizer"
 	"github.com/kyma-project/lifecycle-manager/internal/manifest/labelsremoval"
 	"github.com/kyma-project/lifecycle-manager/internal/manifest/skrresources"
@@ -117,6 +119,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.finishReconcile(ctx, manifest, metrics.ManifestClientInit, manifestStatus, err)
 	}
 
+	kcpClient := kcp.NewKcpClient(r.Client,
+		kcpManifest.NewManifestClient(r.Client, skrClient.ModuleCR()))
+
 	if manifest.IsUnmanaged() {
 		if !manifest.GetDeletionTimestamp().IsZero() {
 			return r.cleanupManifest(ctx, manifest, manifestStatus, metrics.ManifestUnmanagedUpdate, nil)
@@ -171,12 +176,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if !manifest.GetDeletionTimestamp().IsZero() {
-		if err := skrClient.DeleteModuleCR(ctx, manifest); err != nil {
-			if errors.Is(err, finalizer.ErrRequeueRequired) {
-				r.ManifestMetrics.RecordRequeueReason(metrics.ManifestPreDeleteEnqueueRequired, queue.IntendedRequeue)
-				return ctrl.Result{Requeue: true}, nil
-			}
-			return r.finishReconcile(ctx, manifest, metrics.ManifestPreDelete, manifestStatus, err)
+		done, err := kcpClient.ManifestCR().DeleteModuleCR(ctx, manifest)
+		if err != nil {
+			manifest.SetStatus(manifest.GetStatus().WithErr(err))
+			return r.finishReconcile(ctx,
+				manifest,
+				metrics.ManifestPreDelete,
+				manifestStatus,
+				err)
+		}
+
+		if !done {
+			r.ManifestMetrics.RecordRequeueReason(metrics.ManifestPreDeleteEnqueueRequired, queue.IntendedRequeue)
+			return ctrl.Result{Requeue: true}, nil
 		}
 	}
 
@@ -311,9 +323,11 @@ func (r *Reconciler) syncManifestState(ctx context.Context, skrClient Client, ma
 ) error {
 	manifestStatus := manifest.GetStatus()
 
-	if err := skrClient.SyncModuleCR(ctx, manifest); err != nil {
-		manifest.SetStatus(manifestStatus.WithState(shared.StateError).WithErr(err))
-		return err
+	if manifest.GetDeletionTimestamp().IsZero() && manifest.Spec.Resource != nil {
+		if err := skrClient.ModuleCR().Create(ctx, *manifest.Spec.Resource); err != nil {
+			manifest.SetStatus(manifestStatus.WithState(shared.StateError).WithErr(err))
+			return err
+		}
 	}
 
 	if err := finalizer.EnsureCRFinalizer(ctx, r.Client, manifest); err != nil {
@@ -355,11 +369,11 @@ func (r *Reconciler) renderTargetResources(ctx context.Context, skrClient Client
 	converter skrresources.ResourceToInfoConverter, manifest *v1beta2.Manifest, spec *Spec,
 ) ([]*resource.Info, error) {
 	if !manifest.GetDeletionTimestamp().IsZero() {
-		deleted, err := skrClient.CheckModuleCRDeletion(ctx, manifest)
+		exists, err := skrClient.ModuleCR().Exists(ctx, *manifest.Spec.Resource)
 		if err != nil {
 			return nil, err
 		}
-		if deleted {
+		if !exists {
 			return ResourceList{}, nil
 		}
 	}
@@ -496,7 +510,7 @@ func (r *Reconciler) configClient(ctx context.Context, manifest *v1beta2.Manifes
 		}
 	}
 
-	clnt, err := NewSingletonClients(cluster, r.Client)
+	clnt, err := NewSingletonClients(cluster)
 	if err != nil {
 		return nil, err
 	}

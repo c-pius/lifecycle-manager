@@ -13,5 +13,5 @@ type Client interface {
 	skrresources.ResourceInfoConverter
 
 	client.Client
-	skr.ModuleCRClient
+	ModuleCR() skr.ModuleCRInterface
 }

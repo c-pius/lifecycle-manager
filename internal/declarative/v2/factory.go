@@ -37,7 +37,7 @@ type SingletonClients struct {
 	// controller runtime client
 	client.Client
 
-	skr.ModuleCRClient
+	moduleCR *skr.ModuleCRClient
 
 	// the original config used for all clients
 	config *rest.Config
@@ -66,7 +66,7 @@ type SingletonClients struct {
 	unstructuredRESTClientCache map[string]resource.RESTClient
 }
 
-func NewSingletonClients(info *ClusterInfo, kcp client.Client) (*SingletonClients, error) {
+func NewSingletonClients(info *ClusterInfo) (*SingletonClients, error) {
 	if err := setKubernetesDefaults(info.Config); err != nil {
 		return nil, err
 	}
@@ -114,6 +114,8 @@ func NewSingletonClients(info *ClusterInfo, kcp client.Client) (*SingletonClient
 
 	openAPIGetter := openapi.NewOpenAPIGetter(cachedDiscoveryClient)
 
+	moduleCRClient := skr.NewModuleCRClient(runtimeClient)
+
 	clients := &SingletonClients{
 		httpClient:                  httpClient,
 		config:                      info.Config,
@@ -126,7 +128,7 @@ func NewSingletonClients(info *ClusterInfo, kcp client.Client) (*SingletonClient
 		structuredRESTClientCache:   map[string]resource.RESTClient{},
 		unstructuredRESTClientCache: map[string]resource.RESTClient{},
 		Client:                      runtimeClient,
-		ModuleCRClient:              skr.NewModuleCR(runtimeClient, kcp),
+		moduleCR:                    moduleCRClient,
 	}
 
 	return clients, nil
@@ -186,4 +188,8 @@ func setKubernetesDefaults(config *rest.Config) error {
 		return fmt.Errorf("failed to create kubernetes default config: %w", err)
 	}
 	return nil
+}
+
+func (s *SingletonClients) ModuleCR() skr.ModuleCRInterface {
+	return s.moduleCR
 }
