@@ -19,8 +19,6 @@ import (
 	"github.com/kyma-project/lifecycle-manager/internal"
 	"github.com/kyma-project/lifecycle-manager/internal/kcp"
 	kcpManifest "github.com/kyma-project/lifecycle-manager/internal/kcp/manifest"
-	"github.com/kyma-project/lifecycle-manager/internal/manifest/finalizer"
-	"github.com/kyma-project/lifecycle-manager/internal/manifest/labelsremoval"
 	"github.com/kyma-project/lifecycle-manager/internal/manifest/skrresources"
 	"github.com/kyma-project/lifecycle-manager/internal/manifest/status"
 	"github.com/kyma-project/lifecycle-manager/internal/pkg/metrics"
@@ -43,42 +41,26 @@ const (
 )
 
 func NewFromManager(mgr manager.Manager, requeueIntervals queue.RequeueIntervals, metrics *metrics.ManifestMetrics,
-	mandatoryModulesMetrics *metrics.MandatoryModulesMetrics, manifestAPIClient ManifestAPIClient,
-	specResolver SpecResolver, options ...Option,
+	mandatoryModulesMetrics *metrics.MandatoryModulesMetrics,
+	specResolver SpecResolver, kcpClient kcp.KcpClientInterface, options ...Option,
 ) *Reconciler {
 	reconciler := &Reconciler{}
 	reconciler.ManifestMetrics = metrics
 	reconciler.MandatoryModuleMetrics = mandatoryModulesMetrics
 	reconciler.RequeueIntervals = requeueIntervals
 	reconciler.specResolver = specResolver
-	reconciler.manifestClient = manifestAPIClient
-	reconciler.managedLabelRemovalService = labelsremoval.NewManagedByLabelRemovalService(manifestAPIClient)
+	reconciler.kcpClient = kcpClient
 	reconciler.Options = DefaultOptions().Apply(WithManager(mgr)).Apply(options...)
 	return reconciler
-}
-
-type ManagedByLabelRemoval interface {
-	RemoveManagedByLabel(ctx context.Context,
-		manifest *v1beta2.Manifest,
-		skrClient labelsremoval.SkrClient,
-	) error
-}
-
-type ManifestAPIClient interface {
-	UpdateManifest(ctx context.Context, manifest *v1beta2.Manifest) error
-	PatchStatusIfDiffExist(ctx context.Context, manifest *v1beta2.Manifest,
-		previousStatus shared.Status) error
-	SsaSpec(ctx context.Context, obj client.Object) error
 }
 
 type Reconciler struct {
 	queue.RequeueIntervals
 	*Options
-	ManifestMetrics            *metrics.ManifestMetrics
-	MandatoryModuleMetrics     *metrics.MandatoryModulesMetrics
-	specResolver               SpecResolver
-	manifestClient             ManifestAPIClient
-	managedLabelRemovalService ManagedByLabelRemoval
+	ManifestMetrics        *metrics.ManifestMetrics
+	MandatoryModuleMetrics *metrics.MandatoryModulesMetrics
+	specResolver           SpecResolver
+	kcpClient              kcp.KcpClientInterface
 }
 
 //nolint:funlen,cyclop,gocognit // Declarative pkg will be removed soon
@@ -104,7 +86,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if err := status.Initialize(manifest); err != nil {
-		return r.finishReconcile(ctx, manifest, metrics.ManifestInit, manifestStatus, err)
+		return r.finishReconcile(ctx,
+			manifest,
+			metrics.ManifestInit,
+			manifestStatus,
+			err)
 	}
 
 	recordMandatoryModuleState(manifest, r)
@@ -112,23 +98,31 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	skrClient, err := r.getTargetClient(ctx, manifest)
 	if err != nil {
 		if !manifest.GetDeletionTimestamp().IsZero() && errors.Is(err, common.ErrAccessSecretNotFound) {
-			return r.cleanupManifest(ctx, manifest, manifestStatus, metrics.ManifestClientInit, err)
+			return r.cleanupManifest(ctx,
+				manifest,
+				manifestStatus,
+				metrics.ManifestClientInit,
+				err)
 		}
 
 		manifest.SetStatus(manifest.GetStatus().WithState(shared.StateError).WithErr(err))
 		return r.finishReconcile(ctx, manifest, metrics.ManifestClientInit, manifestStatus, err)
 	}
 
-	kcpClient := kcp.NewKcpClient(r.Client,
-		kcpManifest.NewManifestClient(r.Client, skrClient.ModuleCR()))
+	kcpUseCase := kcp.NewKcpUseCase(r.kcpClient,
+		kcpManifest.NewManifestUseCase(r.kcpClient, skrClient, skrClient.ModuleCR()))
 
 	if manifest.IsUnmanaged() {
 		if !manifest.GetDeletionTimestamp().IsZero() {
-			return r.cleanupManifest(ctx, manifest, manifestStatus, metrics.ManifestUnmanagedUpdate, nil)
+			return r.cleanupManifest(ctx,
+				manifest,
+				manifestStatus,
+				metrics.ManifestUnmanagedUpdate,
+				nil)
 		}
 
-		if controllerutil.ContainsFinalizer(manifest, finalizer.LabelRemovalFinalizer) {
-			return r.handleLabelsRemovalFinalizer(ctx, skrClient, manifest)
+		if controllerutil.ContainsFinalizer(manifest, kcpManifest.LabelRemovalFinalizer) {
+			return r.handleLabelsRemovalFinalizer(ctx, kcpUseCase, manifest)
 		}
 
 		if err := r.Delete(ctx, manifest); err != nil {
@@ -138,8 +132,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if manifest.GetDeletionTimestamp().IsZero() {
-		if finalizer.FinalizersUpdateRequired(manifest) {
-			return r.ssaSpec(ctx, manifest, metrics.ManifestAddFinalizer)
+		added, err := r.kcpClient.ManifestCR().AddMandatoryFinalizers(ctx, manifest)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		if added {
+			r.ManifestMetrics.RecordRequeueReason(metrics.ManifestAddFinalizer, queue.IntendedRequeue)
+			return ctrl.Result{Requeue: true}, nil
 		}
 	}
 
@@ -147,9 +147,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err != nil {
 		manifest.SetStatus(manifest.GetStatus().WithState(shared.StateError).WithErr(err))
 		if !manifest.GetDeletionTimestamp().IsZero() {
-			return r.cleanupManifest(ctx, manifest, manifestStatus, metrics.ManifestParseSpec, err)
+			return r.cleanupManifest(ctx,
+				manifest,
+				manifestStatus,
+				metrics.ManifestParseSpec,
+				err)
 		}
-		return r.finishReconcile(ctx, manifest, metrics.ManifestParseSpec, manifestStatus, err)
+		return r.finishReconcile(ctx,
+			manifest,
+			metrics.ManifestParseSpec,
+			manifestStatus,
+			err)
 	}
 
 	if notContainsSyncedOCIRefAnnotation(manifest) {
@@ -161,10 +169,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err != nil {
 		if util.IsConnectionRelatedError(err) {
 			r.invalidateClientCache(ctx, manifest)
-			return r.finishReconcile(ctx, manifest, metrics.ManifestUnauthorized, manifestStatus, err)
+			return r.finishReconcile(ctx,
+				manifest,
+				metrics.ManifestUnauthorized,
+				manifestStatus,
+				err)
 		}
 
-		return r.finishReconcile(ctx, manifest, metrics.ManifestRenderResources, manifestStatus, err)
+		return r.finishReconcile(ctx,
+			manifest,
+			metrics.ManifestRenderResources,
+			manifestStatus,
+			err)
 	}
 
 	if err := r.pruneDiff(ctx, skrClient, manifest, current, target, spec); errors.Is(err,
@@ -172,13 +188,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		r.ManifestMetrics.RecordRequeueReason(metrics.ManifestPruneDiffNotFinished, queue.IntendedRequeue)
 		return ctrl.Result{Requeue: true}, nil
 	} else if err != nil {
-		return r.finishReconcile(ctx, manifest, metrics.ManifestPruneDiff, manifestStatus, err)
+		return r.finishReconcile(ctx,
+			manifest,
+			metrics.ManifestPruneDiff,
+			manifestStatus,
+			err)
 	}
 
 	if !manifest.GetDeletionTimestamp().IsZero() {
-		done, err := kcpClient.ManifestCR().DeleteModuleCR(ctx, manifest)
+		done, err := kcpUseCase.ManifestUseCase().DeleteModuleCR(ctx, manifest)
 		if err != nil {
-			manifest.SetStatus(manifest.GetStatus().WithErr(err))
 			return r.finishReconcile(ctx,
 				manifest,
 				metrics.ManifestPreDelete,
@@ -196,16 +215,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if errors.Is(err, skrresources.ErrClientUnauthorized) {
 			r.invalidateClientCache(ctx, manifest)
 		}
-		return r.finishReconcile(ctx, manifest, metrics.ManifestSyncResources, manifestStatus, err)
+		return r.finishReconcile(ctx,
+			manifest,
+			metrics.ManifestSyncResources,
+			manifestStatus,
+			err)
 	}
 
-	if err := r.syncManifestState(ctx, skrClient, manifest, target); err != nil {
-		if errors.Is(err, finalizer.ErrRequeueRequired) {
-			r.ManifestMetrics.RecordRequeueReason(metrics.ManifestSyncResourcesEnqueueRequired, queue.IntendedRequeue)
-			return ctrl.Result{Requeue: true}, nil
-		}
+	if err := r.syncManifestState(ctx, skrClient, kcpUseCase, manifest, target); err != nil {
+		// TODO: check
+		// if errors.Is(err, finalizer.ErrRequeueRequired) {
+		// 	r.ManifestMetrics.RecordRequeueReason(metrics.ManifestSyncResourcesEnqueueRequired, queue.IntendedRequeue)
+		// 	return ctrl.Result{Requeue: true}, nil
+		// }
 		logf.FromContext(ctx).Error(err, "failed to sync manifest state")
-		return r.finishReconcile(ctx, manifest, metrics.ManifestSyncState, manifestStatus, err)
+		return r.finishReconcile(ctx,
+			manifest,
+			metrics.ManifestSyncState,
+			manifestStatus,
+			err)
 	}
 	// This situation happens when manifest get new installation layer to update resources,
 	// we need to make sure all updates successfully before we can update synced oci ref
@@ -215,10 +243,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if !manifest.GetDeletionTimestamp().IsZero() {
-		return r.cleanupManifest(ctx, manifest, manifestStatus, metrics.ManifestReconcileFinished, nil)
+		return r.cleanupManifest(ctx,
+			manifest,
+			manifestStatus,
+			metrics.ManifestReconcileFinished,
+			nil)
 	}
 
-	return r.finishReconcile(ctx, manifest, metrics.ManifestReconcileFinished, manifestStatus, nil)
+	return r.finishReconcile(ctx,
+		manifest,
+		metrics.ManifestReconcileFinished,
+		manifestStatus,
+		nil)
 }
 
 func recordMandatoryModuleState(manifest *v1beta2.Manifest, r *Reconciler) {
@@ -230,11 +266,11 @@ func recordMandatoryModuleState(manifest *v1beta2.Manifest, r *Reconciler) {
 	}
 }
 
-func (r *Reconciler) handleLabelsRemovalFinalizer(ctx context.Context, skrClient Client,
+func (r *Reconciler) handleLabelsRemovalFinalizer(ctx context.Context,
+	kcp kcp.KcpUseCaseInterface,
 	manifest *v1beta2.Manifest,
 ) (ctrl.Result, error) {
-	err := r.managedLabelRemovalService.RemoveManagedByLabel(ctx, manifest, skrClient)
-	if err != nil {
+	if err := kcp.ManifestUseCase().RemoveManagedByLabel(ctx, manifest); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -242,27 +278,42 @@ func (r *Reconciler) handleLabelsRemovalFinalizer(ctx context.Context, skrClient
 	return ctrl.Result{Requeue: true}, nil
 }
 
-func (r *Reconciler) cleanupManifest(ctx context.Context, manifest *v1beta2.Manifest, manifestStatus shared.Status,
-	requeueReason metrics.ManifestRequeueReason, originalErr error,
+func (r *Reconciler) cleanupManifest(ctx context.Context,
+	manifest *v1beta2.Manifest,
+	manifestStatus shared.Status,
+	requeueReason metrics.ManifestRequeueReason,
+	originalErr error,
 ) (ctrl.Result, error) {
 	err := r.cleanupMetrics(manifest)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	var finalizerRemoved bool
+
+	removed := false
 	if errors.Is(originalErr, common.ErrAccessSecretNotFound) || manifest.IsUnmanaged() {
-		finalizerRemoved = finalizer.RemoveAllFinalizers(manifest)
+		removed, err = r.kcpClient.ManifestCR().RemoveAllFinalizers(ctx, manifest)
 	} else {
-		finalizerRemoved = finalizer.RemoveRequiredFinalizers(manifest)
+		removed, err = r.kcpClient.ManifestCR().RemoveMandatoryFinalizers(ctx, manifest)
 	}
-	if finalizerRemoved {
-		return r.updateManifest(ctx, manifest, requeueReason)
+
+	if err != nil {
+		return ctrl.Result{}, err
 	}
+
+	if removed {
+		r.ManifestMetrics.RecordRequeueReason(requeueReason, queue.IntendedRequeue)
+		return ctrl.Result{Requeue: true}, nil
+	}
+
 	if manifest.GetStatus().State != shared.StateWarning {
 		manifest.SetStatus(manifest.GetStatus().WithState(shared.StateDeleting).
 			WithOperation(fmt.Sprintf("waiting as other finalizers are present: %s", manifest.GetFinalizers())))
 	}
-	return r.finishReconcile(ctx, manifest, requeueReason, manifestStatus, originalErr)
+	return r.finishReconcile(ctx,
+		manifest,
+		requeueReason,
+		manifestStatus,
+		originalErr)
 }
 
 func (r *Reconciler) cleanupMetrics(manifest *v1beta2.Manifest) error {
@@ -318,21 +369,20 @@ func (r *Reconciler) renderResources(ctx context.Context, skrClient Client, mani
 	return target, current, nil
 }
 
-func (r *Reconciler) syncManifestState(ctx context.Context, skrClient Client, manifest *v1beta2.Manifest,
+func (r *Reconciler) syncManifestState(ctx context.Context,
+	skrClient Client,
+	kcpClient kcp.KcpUseCaseInterface,
+	manifest *v1beta2.Manifest,
 	target []*resource.Info,
 ) error {
 	manifestStatus := manifest.GetStatus()
 
-	if manifest.GetDeletionTimestamp().IsZero() && manifest.Spec.Resource != nil {
-		if err := skrClient.ModuleCR().Create(ctx, *manifest.Spec.Resource); err != nil {
-			manifest.SetStatus(manifestStatus.WithState(shared.StateError).WithErr(err))
+	if manifest.GetDeletionTimestamp().IsZero() {
+		if err := kcpClient.ManifestUseCase().CreateModuleCR(ctx, manifest); err != nil {
 			return err
 		}
 	}
 
-	if err := finalizer.EnsureCRFinalizer(ctx, r.Client, manifest); err != nil {
-		return err
-	}
 	if !manifest.GetDeletionTimestamp().IsZero() {
 		if status.RequireManifestStateUpdateAfterSyncResource(manifest, shared.StateDeleting) {
 			return errStateRequireUpdate
@@ -518,10 +568,13 @@ func (r *Reconciler) configClient(ctx context.Context, manifest *v1beta2.Manifes
 	return clnt, nil
 }
 
-func (r *Reconciler) finishReconcile(ctx context.Context, manifest *v1beta2.Manifest,
-	requeueReason metrics.ManifestRequeueReason, previousStatus shared.Status, originalErr error,
+func (r *Reconciler) finishReconcile(ctx context.Context,
+	manifest *v1beta2.Manifest,
+	requeueReason metrics.ManifestRequeueReason,
+	previousStatus shared.Status,
+	originalErr error,
 ) (ctrl.Result, error) {
-	if err := r.manifestClient.PatchStatusIfDiffExist(ctx, manifest, previousStatus); err != nil {
+	if err := r.kcpClient.ManifestCR().UpdateStatus(ctx, manifest, previousStatus); err != nil {
 		return ctrl.Result{}, err
 	}
 	if originalErr != nil {
@@ -533,25 +586,18 @@ func (r *Reconciler) finishReconcile(ctx context.Context, manifest *v1beta2.Mani
 	return ctrl.Result{RequeueAfter: requeueAfter}, nil
 }
 
-func (r *Reconciler) ssaSpec(ctx context.Context, manifest *v1beta2.Manifest,
+func (r *Reconciler) updateManifest(ctx context.Context,
+	manifest *v1beta2.Manifest,
 	requeueReason metrics.ManifestRequeueReason,
 ) (ctrl.Result, error) {
-	r.ManifestMetrics.RecordRequeueReason(requeueReason, queue.IntendedRequeue)
-	if err := r.manifestClient.SsaSpec(ctx, manifest); err != nil {
-		return ctrl.Result{}, err
-	}
-	return ctrl.Result{Requeue: true}, nil
-}
-
-func (r *Reconciler) updateManifest(ctx context.Context, manifest *v1beta2.Manifest,
-	requeueReason metrics.ManifestRequeueReason,
-) (ctrl.Result, error) {
-	r.ManifestMetrics.RecordRequeueReason(requeueReason, queue.IntendedRequeue)
-
-	if err := r.manifestClient.UpdateManifest(ctx, manifest); err != nil {
+	err := r.kcpClient.ManifestCR().Update(ctx, manifest)
+	if err != nil {
+		// TODO
+		// r.EventRecorder.Warning(manifest, "UpdateObject", err)
 		return ctrl.Result{}, err
 	}
 
+	r.ManifestMetrics.RecordRequeueReason(requeueReason, queue.IntendedRequeue)
 	return ctrl.Result{Requeue: true}, nil
 }
 

@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kyma-project/lifecycle-manager/api/shared"
-	"github.com/kyma-project/lifecycle-manager/internal/manifest/finalizer"
+	"github.com/kyma-project/lifecycle-manager/internal/kcp/manifest"
 	"github.com/kyma-project/lifecycle-manager/internal/util/collections"
 	"github.com/kyma-project/lifecycle-manager/pkg/util"
 )
@@ -69,7 +69,7 @@ func (m *ModuleCRClient) Create(ctx context.Context, moduleCR unstructured.Unstr
 
 	// this is likely the reason for https://github.com/kyma-project/lifecycle-manager/issues/2234
 	// if it exists, we should consider to use an upsert instead
-	err := m.skr.Create(ctx, &moduleCR, client.FieldOwner(finalizer.CustomResourceManagerFinalizer))
+	err := m.skr.Create(ctx, &moduleCR, client.FieldOwner(manifest.CustomResourceManagerFinalizer))
 
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create default Module CR: %w", err)

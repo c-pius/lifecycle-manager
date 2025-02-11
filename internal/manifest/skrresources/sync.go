@@ -9,7 +9,7 @@ import (
 
 	"github.com/kyma-project/lifecycle-manager/api/shared"
 	"github.com/kyma-project/lifecycle-manager/api/v1beta2"
-	"github.com/kyma-project/lifecycle-manager/internal/manifest/manifestclient"
+	kcpManifest "github.com/kyma-project/lifecycle-manager/internal/kcp/manifest"
 )
 
 var ErrWarningResourceSyncStateDiff = errors.New("resource syncTarget state diff detected")
@@ -19,7 +19,7 @@ func SyncResources(ctx context.Context, skrClient client.Client, manifest *v1bet
 ) error {
 	manifestStatus := manifest.GetStatus()
 
-	if err := ConcurrentSSA(skrClient, manifestclient.DefaultFieldOwner).Run(ctx, target); err != nil {
+	if err := ConcurrentSSA(skrClient, kcpManifest.DefaultFieldOwner).Run(ctx, target); err != nil {
 		manifest.SetStatus(manifestStatus.WithState(shared.StateError).WithErr(err))
 		return err
 	}

@@ -5,7 +5,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type KcpInterface interface {
+type KcpClientInterface interface {
 	client.Client
 	ManifestCR() manifest.ManifestCRInterface
 }
