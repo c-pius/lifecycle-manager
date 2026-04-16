@@ -36,6 +36,15 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts ctrlruntime.Options
 		return fmt.Errorf("KymaReconciler %w", err)
 	}
 
+	testListener := watcherevent.NewSKREventListener(
+		":8089",
+		"test-manager",
+	)
+
+	if err := mgr.Add(testListener); err != nil {
+		return fmt.Errorf("Failed to setup test listener: %w", err)
+	}
+
 	if err := ctrl.NewControllerManagedBy(mgr).For(&v1beta2.Kyma{}).
 		Named(controllerName).
 		WithOptions(opts).
@@ -49,6 +58,8 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, opts ctrlruntime.Options
 				handler.OnlyControllerOwner()), builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
 		WatchesRawSource(source.Channel(controller.AdaptEvents(runnableListener.ReceivedEvents),
 			CreateSkrEventHandler(&kymaNameLookupAdapter{r.LookupService}))).
+		WatchesRawSource(source.Channel(controller.AdaptEvents(testListener.ReceivedEvents),
+			CreateTestSkrEventHandler())).
 		Complete(r); err != nil {
 		return fmt.Errorf("failed to setup manager for kyma controller: %w", err)
 	}

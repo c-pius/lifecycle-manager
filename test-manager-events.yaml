@@ -1,0 +1,38 @@
+# created with k -n kcp-system expose deploy/klm-controller-manager --name test-manager-events --type=ClusterIP --port 8089 --target-port 8089
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: "2026-04-16T15:05:28Z"
+  labels:
+    app.kubernetes.io/component: lifecycle-manager.kyma-project.io
+    app.kubernetes.io/created-by: argo-cd
+    app.kubernetes.io/instance: kcp-lifecycle-manager
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: lifecycle-manager
+    app.kubernetes.io/part-of: kcp
+  name: test-manager-events
+  namespace: kcp-system
+  uid: f4d3521e-18f0-4abc-9f66-9f1cc74ffb9a
+spec:
+  clusterIP: 10.43.0.0
+  clusterIPs:
+  - 10.43.0.0
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - port: 8089
+    protocol: TCP
+    targetPort: 8089
+  selector:
+    app.kubernetes.io/component: lifecycle-manager.kyma-project.io
+    app.kubernetes.io/created-by: argo-cd
+    app.kubernetes.io/instance: kcp-lifecycle-manager
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: lifecycle-manager
+    app.kubernetes.io/part-of: kcp
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}

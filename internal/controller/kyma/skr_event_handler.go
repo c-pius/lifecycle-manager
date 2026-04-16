@@ -54,6 +54,25 @@ func CreateSkrEventHandler(kymaLookup KymaLookupService) *handler.Funcs {
 	}
 }
 
+func CreateTestSkrEventHandler() *handler.Funcs {
+	return &handler.Funcs{
+		GenericFunc: func(ctx context.Context,
+			evnt event.GenericEvent,
+			_ workqueue.TypedRateLimitingInterface[ctrl.Request],
+		) {
+			logger := ctrl.Log.WithName("listener")
+
+			runtimeID, err := GetRuntimeIDFromEvent(evnt)
+			if err != nil {
+				logger.Error(fmt.Errorf("%w: %w", ErrHandlingWatcherEvent, err), fmt.Sprintf("event: %v", evnt.Object))
+				return
+			}
+
+			logger.Info(fmt.Sprintf("event received from SKR, RuntimeId: %s, event: %v", runtimeID, evnt.Object))
+		},
+	}
+}
+
 func GetRuntimeIDFromEvent(evnt event.GenericEvent) (string, error) {
 	unstruct, ok := evnt.Object.(*unstructured.Unstructured)
 	if !ok {

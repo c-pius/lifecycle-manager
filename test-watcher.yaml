@@ -1,0 +1,24 @@
+apiVersion: operator.kyma-project.io/v1beta2
+kind: Watcher
+metadata:
+  finalizers:
+  - operator.kyma-project.io/watcher
+  name: test-watcher
+  namespace: kcp-system
+spec:
+  field: spec
+  gateway:
+    selector:
+      matchLabels:
+        operator.kyma-project.io/watcher-gateway: default
+  labelsToWatch:
+    operator.kyma-project.io/foo: bar
+  manager: test-manager
+  resourceToWatch:
+    group: ""
+    resource: pods
+    version: v1
+  serviceInfo:
+    name: test-manager-events
+    namespace: kcp-system
+    port: 8089
