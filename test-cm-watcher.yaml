@@ -3,7 +3,7 @@ kind: Watcher
 metadata:
   finalizers:
   - operator.kyma-project.io/watcher
-  name: test-watcher
+  name: test-cm-watcher
   namespace: kcp-system
 spec:
   field: spec
@@ -16,7 +16,7 @@ spec:
   manager: test-manager
   resourceToWatch:
     group: ""
-    resource: pods
+    resource: configmaps
     version: v1
   serviceInfo:
     name: test-manager-events
